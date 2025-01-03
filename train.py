@@ -11,8 +11,8 @@ from modeling import collate_fn_with_row_padding, evaluate
 
 print('Dataframe 호출 시작')
 
-df = pd.read_csv('./final_df.csv')
-df['IVS'] = 0.91*df['Scaled_Schema_sim'] + 0.09*df['Scaled_Diversity']
+df = pd.read_csv('./final_df_log.csv')
+df['IVS'] = 0.91 * df['Schema_sim_with_col_datas_scaled'] + 0.09 * df['Scaled_Diversity']
 tabledata = df[['Query', 'Target', 'IVS']]
 tabledata = tabledata.dropna()
 
