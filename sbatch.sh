@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --nodes=5
-#SBATCH --partition=gpu2
-#SBATCH --gres=gpu:a10:4
-#SBATCH --cpus-per-task=8
-#SBATCH --job-name=ysh1116
+#SBATCH --nodes=1
+#SBATCH --partition=gpu4
+#SBATCH --gres=gpu:a6000:4
+#SBATCH --cpus-per-task=56
+#SBATCH --job-name=test_root
 #SBATCH -o ./results/jupyter.%N.%j.out  # STDOUT
 #SBATCH -e ./results_log/jupyter.%N.%j.err  # STDERR
 
@@ -21,6 +21,12 @@ python3 -m venv venv
 source venv/bin/activate
 
 # install dependency
-pip3 install torch sklearn.model_selection modeling pandas transformers scikit-learn numpy
+pip3 install torch
+pip3 install sklearn.model_selection
+pip3 insatll modeling
+pip3 install pandas
+pip3 insatll transformers
+pip3 install scikit-learn
+pip3 install numpy
 
 python3 train.py
