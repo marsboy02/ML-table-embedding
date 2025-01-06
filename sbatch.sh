@@ -25,7 +25,7 @@ pip3 install torch
 pip3 install sklearn.model_selection
 pip3 insatll modeling
 pip3 install pandas
-pip3 insatll transformers
+pip3 install transformers
 pip3 install scikit-learn
 pip3 install numpy
 
