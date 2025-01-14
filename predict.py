@@ -25,7 +25,7 @@ def predict(table1, table2, real_cols1, real_cols2, real_rows1, real_rows2):
 # 비교할 테이블 쌍 호출
 
 table1 = np.load('./input_table/Netflix_movies_and_tv_shows_clustering.npy')
-table2 = np.load('./input_table/netflix_titles.npy')
+table2 = np.load('./input_table/Top_1000_wealthiest_people.npy')
 
 # GPU/CPU 설정
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

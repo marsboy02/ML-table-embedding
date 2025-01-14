@@ -24,7 +24,7 @@ scaler = MinMaxScaler()
 print('Dataframe 호출 시작')
 
 # ==================================== <IVS 선택 사항 부분> ====================================
-augmented_final_df = pd.read_csv('./augmented_with_cosine_sim_updated.csv')
+augmented_final_df = pd.read_csv('./final_df.csv')
 
 augmented_final_df['scaled_div'] = scaler.fit_transform(augmented_final_df[['Diversity']])
 augmented_final_df['scaled_Schema_sim_with_col_datas'] = scaler.fit_transform(augmented_final_df[['Schema_sim_with_col_datas']])
@@ -34,7 +34,7 @@ augmented_final_df['scaled_sim'] = scaler.fit_transform(augmented_final_df[['cos
 
 refined_df = augmented_final_df.dropna()
 
-for alpha in [0.1, 0.3, 0.5, 0.7, 0.9]:
+for alpha in [0.3]:
 
     refined_df['ivs'] = alpha*refined_df['scaled_div'] + (1-alpha)*refined_df['scaled_sim']
     refined_df['IVS'] = scaler.fit_transform(refined_df[['ivs']])
