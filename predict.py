@@ -35,7 +35,7 @@ vertical_attn = VerticalSelfAttention(embed_dim=256, num_heads=4, rep_mode="cls"
 cross_encoder = TableCrossEncoder(pretrained_model_name="bert-base-uncased", hidden_dim=256)
 
 # 저장된 가중치 로드 (pt 파일명 지정)
-checkpoint = torch.load('best_model_sche9_div1.pt', map_location=device)
+checkpoint = torch.load('best_model_div7_sim3.pt', map_location=device)
 vertical_attn.load_state_dict(checkpoint['vertical_attn'])
 cross_encoder.load_state_dict(checkpoint['cross_encoder'])
 
