@@ -25,7 +25,7 @@ def predict(table1, table2, real_cols1, real_cols2, real_rows1, real_rows2):
 # 비교할 테이블 쌍 호출
 
 table1 = np.load('./input_table/Netflix_movies_and_tv_shows_clustering.npy')
-table2 = np.load('./input_table/global-plastics-production.npy')
+table2 = np.load('./input_table/word_analogy_test.npy')
 
 # GPU/CPU 설정
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +35,7 @@ vertical_attn = VerticalSelfAttention(embed_dim=256, num_heads=4, rep_mode="cls"
 cross_encoder = TableCrossEncoder(pretrained_model_name="bert-base-uncased", hidden_dim=256)
 
 # 저장된 가중치 로드 (pt 파일명 지정)
-checkpoint = torch.load('best_model_div7_sim3.pt', map_location=device)
+checkpoint = torch.load('best_model_div0_sim10.pt', map_location=device)
 vertical_attn.load_state_dict(checkpoint['vertical_attn'])
 cross_encoder.load_state_dict(checkpoint['cross_encoder'])
 

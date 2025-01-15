@@ -1,5 +1,3 @@
-import pandas as pd
-
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -10,6 +8,8 @@ from sklearn.preprocessing import MinMaxScaler
 from modeling import MyTableDataset, TableCrossEncoder, EarlyStopping
 from modeling import collate_fn_with_row_padding, evaluate
 
+import pandas as pd
+
 # 기존 modeling의 VerticalSelfAttention이 아닌
 # mha_meanpoolin.py로 부터 새로 작성한 VerticalSelfAttention 호출
 # mha(=Multi Head Attention 약어)
@@ -17,21 +17,22 @@ from mha_meanpooing import VerticalSelfAttention
 
 print('library 호출 완료')
 
+print('Dataframe 호출 시작')
+
+# ##### dataframe path 설정 #####
+df = pd.read_csv('./augmented_final_df.csv')
+
+scaler = MinMaxScaler()
+
 def train_model(num_epochs, batch_size, lr, alpha):
     # GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device :', device)
 
-    print('Dataframe 호출 시작')
-
-    # ##### dataframe path 설정 #####
-    df = pd.read_csv('./final_df.csv')
-    
-    scaler = MinMaxScaler()
-    
     # IVS 인자 변경
     df['ivs'] = alpha*df['Scaled_Diversity'] + (1-alpha)*df['Scaled_Similarity']
-    df['IVS'] = scaler.fit_transform(df[['IVS']])
+    # IVS MinMax Scaling
+    df['IVS'] = scaler.fit_transform(df[['ivs']])
     tabledata = df[['Query', 'Target', 'IVS']]
     tabledata = tabledata.dropna()
 
@@ -47,16 +48,16 @@ def train_model(num_epochs, batch_size, lr, alpha):
     num_epochs = num_epochs
     batch_size = batch_size
     lr = lr
-    
+
     # 1) 데이터셋 / 데이터로더
     train_dataset = MyTableDataset(train_df, input_table_folder='input_table')
     train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn_with_row_padding, shuffle=True)
     
     val_dataset = MyTableDataset(val_df, input_table_folder='input_table')
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn_with_row_padding, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn_with_row_padding, shuffle=False)
     
     # 2) 모델 초기화
-    vertical_attn = VerticalSelfAttention(embed_dim=256, num_heads=4, rep_mode="cls")
+    vertical_attn = VerticalSelfAttention(embed_dim=256, num_heads=4, rep_mode="mean")
     cross_encoder = TableCrossEncoder(pretrained_model_name="distilbert-base-uncased", hidden_dim=256)
     
     # 2-1) 모델 => device
@@ -70,7 +71,7 @@ def train_model(num_epochs, batch_size, lr, alpha):
     vertical_attn.train()
     cross_encoder.train()
     
-    early_stopping = EarlyStopping(patience=5, delta=0.0, save_path=f'best_lr{lr:.0e}_bs{str(batch)}_div{int(10*alpha)}.pt')
+    early_stopping = EarlyStopping(patience=5, delta=0.0, save_path=f'best_lr{lr:.0e}_bs{str(batch_size)}_div{int(10*alpha)}.pt')
 
     for epoch in range(num_epochs):
         total_loss = 0.0
