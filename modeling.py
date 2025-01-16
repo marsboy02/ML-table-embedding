@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import Dataset, DataLoader
 
 from transformers import BertConfig, BertModel
+from transformers import DistilBertConfig, DistilBertModel
 
 class MyTableDataset(Dataset):
     """
@@ -171,7 +172,7 @@ class VerticalSelfAttention(nn.Module):
     - self.rep_mode에 따라 CLS or MEAN
     - 출력: (B, max_cols, E)
     """
-    def __init__(self, embed_dim=256, num_heads=4, rep_mode="cls"):
+    def __init__(self, embed_dim=256, expanded_dim=1024, num_heads=4, rep_mode="cls"):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -179,13 +180,13 @@ class VerticalSelfAttention(nn.Module):
 
         self.mha = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, batch_first=True)
 
-        self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
+        self.cls_token = torch.zeros(1, 1, embed_dim)
 
         self.layernorm = nn.LayerNorm(embed_dim)
         self.ffn = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim),
+            nn.Linear(embed_dim, expanded_dim),
             nn.ReLU(),
-            nn.Linear(embed_dim, embed_dim),
+            nn.Linear(expanded_dim, embed_dim),
         )
 
     def forward(self, x, real_cols, real_rows):
@@ -210,7 +211,7 @@ class VerticalSelfAttention(nn.Module):
                 col_tensor = table_b[col_idx]  # (R, E)
 
                 # [CLS] + col_tensor
-                cls_token_for_col = self.cls_token  # (1,1,E)
+                cls_token_for_col = self.cls_token.to(device)  # (1,1,E)
                 col_tensor = col_tensor.unsqueeze(0)  # (1,R,E)
                 col_with_cls = torch.cat([cls_token_for_col, col_tensor], dim=1)  # (1, R+1, E)
 
@@ -258,20 +259,27 @@ class VerticalSelfAttention(nn.Module):
 
 class TableCrossEncoder(nn.Module):
     def __init__(self, 
-                 pretrained_model_name="bert-base-uncased",
-                 hidden_dim=256):
+                 hidden_dim=1024,
+                 n_layer=6,
+                 n_head=8,
+                 dropout=0.1):
         super().__init__()
         
-        config = BertConfig.from_pretrained(pretrained_model_name)
-        config.position_embedding_type = 'none'  # 포지셔널 임베딩 제거
-        self.bert = BertModel.from_pretrained(pretrained_model_name, config=config)
+        config = DistilBertConfig(
+            vocab_size=1,
+            dim=256,
+            hidden_dim=hidden_dim,
+            n_layers=n_layer,
+            n_heads=n_head,
+            dropout=dropout
+        )
+        self.bert = DistilBertModel(config=config)
 
-        self.projection = nn.Linear(256, 768)
+        # self.projection = nn.Linear(256, 768)
 
         self.regressor = nn.Sequential(
-            nn.Linear(self.bert.config.hidden_size, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(self.bert.config.hidden_size, 1),
+            nn.ReLU()
         )
 
     def forward(self, table1_colreps, table2_colreps, real_cols1, real_cols2):
@@ -288,16 +296,17 @@ class TableCrossEncoder(nn.Module):
         maxC2 = table2_colreps.shape[1]
 
         # ----- [1] 256 -> 768 변환 -----
-        table1_colreps_768 = self.projection(table1_colreps)  # (B, maxC1, 768)
-        table2_colreps_768 = self.projection(table2_colreps)  # (B, maxC2, 768)
+        # table1_colreps_768 = self.projection(table1_colreps)  # (B, maxC1, 768)
+        # table2_colreps_768 = self.projection(table2_colreps)  # (B, maxC2, 768)
+
 
         # ----- [2] [CLS], [SEP] 임베딩 (768차원) -----
         device = table1_colreps.device
-        cls_token = torch.zeros(B, 1, 768).to(device)
-        sep_token = torch.zeros(B, 1, 768).to(device)
+        cls_token = torch.zeros(B, 1, 256).to(device)
+        sep_token = torch.zeros(B, 1, 256).to(device)
 
         # sequence: (B, 1 + maxC1 + 1 + maxC2, E)
-        sequence = torch.cat([cls_token, table1_colreps_768, sep_token, table2_colreps_768], dim=1)
+        sequence = torch.cat([cls_token, table1_colreps, sep_token, table2_colreps], dim=1)
 
         # attention_mask: same shape (B, seq_len)
         seq_len = sequence.size(1)
@@ -329,7 +338,10 @@ class TableCrossEncoder(nn.Module):
             inputs_embeds=sequence,
             attention_mask=attention_mask
         )
-        cls_rep = outputs.last_hidden_state[:, 0, :]  # (B, 768)
+        # cls_rep = outputs.last_hidden_state[:, 0, :]  # (B, 256)
+
+        hidden_states = outputs[0]                      # (B, seq_len, 256)
+        cls_rep = hidden_states[:, 0, :]                # (B, 256)
 
         # ----- [4] Regression -----
         score_pred = self.regressor(cls_rep)  # (B, 1)
@@ -350,7 +362,7 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.inf
+        self.val_loss_min = np.Inf
         self.save_path = save_path
 
     def __call__(self, val_loss, model_dict):

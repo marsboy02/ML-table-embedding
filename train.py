@@ -11,23 +11,36 @@ from modeling import collate_fn_with_row_padding, evaluate
 
 print('Dataframe 호출 시작')
 
-df = pd.read_csv('./final_df_log.csv')
-df['IVS'] = 0.91 * df['Schema_sim_with_col_datas_scaled'] + 0.09 * df['Scaled_Diversity']
-tabledata = df[['Query', 'Target', 'IVS']]
-tabledata = tabledata.dropna()
+from sklearn.preprocessing import MinMaxScaler
 
-print(f'총 학습 데이터 개수 : {tabledata.shape[0]}')
+scaler = MinMaxScaler()
 
-train_df, val_df = train_test_split(tabledata, test_size=0.3, random_state=42)
+# 디렉토리및 csv 파일명 확인
+df = pd.read_csv('./final_df.csv')
 
-print('학습 Dataframe 구축 완료')
-print(f'train dataset : {train_df.shape[0]}')
-print(f'validation dataset : {val_df.shape[0]}')
-
-def train_model(num_epochs, batch_size, lr):
+# ==================================== <Model Training> ====================================
+def train_model(num_epochs, batch_size, lr, alpha):
     # GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device :', device)
+
+#                    ============== [IVS 선택 사항 부분] ==============
+#                    ============== [컬럼명 확인 할 것] ==============
+    # IVS 인자 변경
+    df['ivs'] = alpha*df['scaled_diversity'] + (1-alpha)*df['scaled_cosine_sim']
+    # IVS MinMax Scaling
+    df['IVS'] = scaler.fit_transform(df[['ivs']])
+    tabledata = df[['Query', 'Target', 'IVS']]
+    tabledata = tabledata.dropna()
+#                    ================================================
+
+    print(f'총 학습 데이터 개수 : {tabledata.shape[0]}')
+
+    train_df, val_df = train_test_split(tabledata, test_size=0.2, random_state=42)
+
+    print('학습 Dataframe 구축 완료')
+    print(f'train dataset : {train_df.shape[0]}')
+    print(f'validation dataset : {val_df.shape[0]}')
 
     # 하이퍼파라미터
     num_epochs = num_epochs
@@ -39,11 +52,28 @@ def train_model(num_epochs, batch_size, lr):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn_with_row_padding, shuffle=True)
     
     val_dataset = MyTableDataset(val_df, input_table_folder='input_table')
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn_with_row_padding, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn_with_row_padding, shuffle=False)
     
     # 2) 모델 초기화
-    vertical_attn = VerticalSelfAttention(embed_dim=256, num_heads=4, rep_mode="cls")
-    cross_encoder = TableCrossEncoder(pretrained_model_name="bert-base-uncased", hidden_dim=256)
+
+    # Model에 대한 parameter는 여기서 지정할 것
+    # Model에 대한 parameter는 여기서 지정할 것
+    # Model에 대한 parameter는 여기서 지정할 것
+
+    vertical_attn = VerticalSelfAttention(embed_dim=256, expanded_dim=1024, num_heads=4, rep_mode="cls")
+    '''
+    embed_dim: cell data 임베딩 벡터 차원
+    expanded dim: FFN의 내부 확장 차원
+    num_heads: head 개수
+    rep_mode: [CLS]를 대표 벡터로 사용
+    '''
+    cross_encoder = TableCrossEncoder(hidden_dim=1024, n_layer=6, n_head=8, dropout=0.1)
+    '''
+    hidden_dim: FFN의 내부 확장 차원
+    n_layer: BERT의 Encoder Layer 개수
+    n_head: Multi Head Attention에서 head 개수
+    dropout: 과적합 방지를 위한 dropout 비율
+    '''
     
     # 2-1) 모델 => device
     vertical_attn.to(device)
@@ -56,7 +86,14 @@ def train_model(num_epochs, batch_size, lr):
     vertical_attn.train()
     cross_encoder.train()
     
-    early_stopping = EarlyStopping(patience=5, delta=0.0, save_path='best_model_sche9_div1.pt')
+    # hyperparameter에 따른 파일명 구분 명확히 할 것!!
+    # hyperparameter에 따른 파일명 구분 명확히 할 것!!
+    # hyperparameter에 따른 파일명 구분 명확히 할 것!!
+    early_stopping = EarlyStopping(patience=5, delta=0.0, save_path=f'best_lr{lr:.0e}_bs{str(batch_size)}_div{int(10*alpha)}.pt')
+
+    # ======================== Training ========================
+    # ======================== Training ========================
+    # ======================== Training ========================
 
     for epoch in range(num_epochs):
         total_loss = 0.0
@@ -101,6 +138,14 @@ def train_model(num_epochs, batch_size, lr):
             print('Early stopping is triggered!')
             break
 
-    print("Training finished (or stopped early). Best model loaded.")
+    print("Training finished (or stopped early).")
 
-train_model(num_epochs=50, batch_size=4, lr=1e-4)
+# hyperparamter setting
+
+epochs = [50]
+batchs = [4, 8, 16]
+lrs = [1e-2, 1e-3, 1e-4, 1e-5]
+alphas = [0.1, 0.3, 0.5, 0.7, 0.9]
+
+# model training start
+train_model(num_epochs=50, batch_size=4, lr=1e-2, alpha=0.1)
