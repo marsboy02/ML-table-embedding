@@ -17,6 +17,9 @@ scaler = MinMaxScaler()
 
 # 디렉토리및 csv 파일명 확인
 df = pd.read_csv('./final_df.csv')
+df = df.dropna()
+
+df = df.sample(n=10, random_state=42)
 
 # ==================================== <Model Training> ====================================
 def train_model(num_epochs, batch_size, lr, alpha):
@@ -143,9 +146,14 @@ def train_model(num_epochs, batch_size, lr, alpha):
 # hyperparamter setting
 
 epochs = [50]
-batchs = [4, 8, 16]
-lrs = [1e-2, 1e-3, 1e-4, 1e-5]
+batchs = [16, 32]
+lrs = [1e-3]
 alphas = [0.1, 0.3, 0.5, 0.7, 0.9]
 
 # model training start
-train_model(num_epochs=50, batch_size=4, lr=1e-2, alpha=0.1)
+
+for epoch in epochs:
+    for batch in batchs:
+        for lr in lrs:
+            for alpha in alphas:
+                train_model(num_epochs=epoch, batch_size=batch, lr=lr, alpha=alpha)

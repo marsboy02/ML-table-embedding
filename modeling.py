@@ -278,8 +278,7 @@ class TableCrossEncoder(nn.Module):
         # self.projection = nn.Linear(256, 768)
 
         self.regressor = nn.Sequential(
-            nn.Linear(self.bert.config.hidden_size, 1),
-            nn.ReLU()
+            nn.Linear(self.bert.config.hidden_size, 1)
         )
 
     def forward(self, table1_colreps, table2_colreps, real_cols1, real_cols2):
