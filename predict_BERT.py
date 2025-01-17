@@ -1,7 +1,8 @@
 import numpy as np
+
 import torch
 
-from modeling import VerticalSelfAttention, TableCrossEncoder
+from model_BERT import VerticalSelfAttention, TableCrossEncoder
 
 def predict(table1, table2, real_cols1, real_cols2, real_rows1, real_rows2):
     # 데이터를 텐서로 변환하고 device로 이동
@@ -25,17 +26,30 @@ def predict(table1, table2, real_cols1, real_cols2, real_rows1, real_rows2):
 # 비교할 테이블 쌍 호출
 
 table1 = np.load('./input_table/Netflix_movies_and_tv_shows_clustering.npy')
-table2 = np.load('./input_table/word_analogy_test.npy')
+table2 = np.load('./input_table/netflix_titles.npy')
 
 # GPU/CPU 설정
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# 모델 초기화
-vertical_attn = VerticalSelfAttention(embed_dim=256, num_heads=4, rep_mode="cls")
-cross_encoder = TableCrossEncoder(pretrained_model_name="bert-base-uncased", hidden_dim=256)
+# 모델 초기화 (rep_mode = 'cls' or 'mean')
 
-# 저장된 가중치 로드 (pt 파일명 지정)
-checkpoint = torch.load('best_model_div0_sim10.pt', map_location=device)
+#                               [CLS] vs Mean-Pooling
+#                               [CLS] vs Mean-Pooling
+#                               [CLS] vs Mean-Pooling
+
+vertical_attn = VerticalSelfAttention(embed_dim=256, expansion_factor=1, num_heads=4, rep_mode="cls")
+cross_encoder = TableCrossEncoder(expansion_factor=4, n_layer=6, n_head=8)
+
+#                           =============================
+#                           =============================
+#                           =============================
+
+# 저장된 가중치 로드
+
+# =========== pt 파일명 지정 ===========
+pt_file = 'best_lr1e-03_bs64_div1.pt'
+
+checkpoint = torch.load(pt_file, map_location=device, weights_only=True)
 vertical_attn.load_state_dict(checkpoint['vertical_attn'])
 cross_encoder.load_state_dict(checkpoint['cross_encoder'])
 
@@ -60,7 +74,7 @@ real_cols2 = torch.tensor([table2.shape[0]], dtype=torch.int)
 
 real_rows1 = torch.tensor([table1.shape[1]], dtype=torch.int)
 real_rows2 = torch.tensor([table2.shape[1]], dtype=torch.int)
-# -------- numpy -> tensor --------
+
 
 # IVS 예측
 predict_score = predict(table1, table2, real_cols1, real_cols2, real_rows1, real_rows2)

@@ -22,8 +22,6 @@ source venv/bin/activate
 
 # install dependency
 pip3 install torch
-pip3 install sklearn.model_selection
-pip3 install modeling
 pip3 install pandas
 pip3 install transformers
 pip3 install scikit-learn

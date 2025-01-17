@@ -6,8 +6,8 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 
-from modeling import MyTableDataset, VerticalSelfAttention, TableCrossEncoder, EarlyStopping
-from modeling import collate_fn_with_row_padding, evaluate
+from model_BERT import MyTableDataset, VerticalSelfAttention, TableCrossEncoder, EarlyStopping
+from model_BERT import collate_fn_with_row_padding, evaluate
 
 print('Dataframe 호출 시작')
 
@@ -18,8 +18,6 @@ scaler = MinMaxScaler()
 # 디렉토리및 csv 파일명 확인
 df = pd.read_csv('./final_df.csv')
 df = df.dropna()
-
-df = df.sample(n=10, random_state=42)
 
 # ==================================== <Model Training> ====================================
 def train_model(num_epochs, batch_size, lr, alpha):
@@ -63,14 +61,15 @@ def train_model(num_epochs, batch_size, lr, alpha):
     # Model에 대한 parameter는 여기서 지정할 것
     # Model에 대한 parameter는 여기서 지정할 것
 
-    vertical_attn = VerticalSelfAttention(embed_dim=256, expanded_dim=1024, num_heads=4, rep_mode="cls")
+    vertical_attn = VerticalSelfAttention(embed_dim=256, expansion_factor=4, num_heads=4, rep_mode="cls")
     '''
     embed_dim: cell data 임베딩 벡터 차원
     expanded dim: FFN의 내부 확장 차원
     num_heads: head 개수
-    rep_mode: [CLS]를 대표 벡터로 사용
+    rep_mode: 1) 'cls' = [CLS]를 대표 벡터로 사용
+              2) 'mean' = mean pooling 적용
     '''
-    cross_encoder = TableCrossEncoder(hidden_dim=1024, n_layer=6, n_head=8, dropout=0.1)
+    cross_encoder = TableCrossEncoder(expansion_factor=4, n_layer=6, n_head=8, dropout=0.1)
     '''
     hidden_dim: FFN의 내부 확장 차원
     n_layer: BERT의 Encoder Layer 개수
@@ -92,7 +91,7 @@ def train_model(num_epochs, batch_size, lr, alpha):
     # hyperparameter에 따른 파일명 구분 명확히 할 것!!
     # hyperparameter에 따른 파일명 구분 명확히 할 것!!
     # hyperparameter에 따른 파일명 구분 명확히 할 것!!
-    early_stopping = EarlyStopping(patience=5, delta=0.0, save_path=f'best_lr{lr:.0e}_bs{str(batch_size)}_div{int(10*alpha)}.pt')
+    early_stopping = EarlyStopping(patience=5, delta=0.0, save_path=f'bert_lr{lr:.0e}_bs{str(batch_size)}_div{int(10*alpha)}.pt')
 
     # ======================== Training ========================
     # ======================== Training ========================

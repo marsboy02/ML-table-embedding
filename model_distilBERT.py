@@ -172,7 +172,7 @@ class VerticalSelfAttention(nn.Module):
     - self.rep_mode에 따라 CLS or MEAN
     - 출력: (B, max_cols, E)
     """
-    def __init__(self, embed_dim=256, expanded_dim=1024, num_heads=4, rep_mode="cls"):
+    def __init__(self, embed_dim=256, expansion_factor=4, num_heads=4, rep_mode="cls"):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -184,9 +184,9 @@ class VerticalSelfAttention(nn.Module):
 
         self.layernorm = nn.LayerNorm(embed_dim)
         self.ffn = nn.Sequential(
-            nn.Linear(embed_dim, expanded_dim),
+            nn.Linear(embed_dim, embed_dim * expansion_factor),
             nn.ReLU(),
-            nn.Linear(expanded_dim, embed_dim),
+            nn.Linear(embed_dim * expansion_factor, embed_dim),
         )
 
     def forward(self, x, real_cols, real_rows):
@@ -234,7 +234,7 @@ class VerticalSelfAttention(nn.Module):
                 if self.rep_mode == "cls":
                     rep_vec = out[:, 0, :]  # (1, E)
                 else:  # "mean"
-                    rep_vec = out.mean(dim=1)  # (1, E)
+                    rep_vec = out[:, 1:1+nrow, :].mean(dim=1)  # (1, E)
 
                 reps_for_this_table.append(rep_vec)  # list of (1, E)
 
@@ -259,7 +259,7 @@ class VerticalSelfAttention(nn.Module):
 
 class TableCrossEncoder(nn.Module):
     def __init__(self, 
-                 hidden_dim=1024,
+                 expansion_factor=4,
                  n_layer=6,
                  n_head=8,
                  dropout=0.1):
@@ -268,7 +268,7 @@ class TableCrossEncoder(nn.Module):
         config = DistilBertConfig(
             vocab_size=1,
             dim=256,
-            hidden_dim=hidden_dim,
+            hidden_dim=256*expansion_factor,
             n_layers=n_layer,
             n_heads=n_head,
             dropout=dropout
@@ -361,7 +361,7 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.inf
+        self.val_loss_min = np.Inf
         self.save_path = save_path
 
     def __call__(self, val_loss, model_dict):
