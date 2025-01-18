@@ -12,11 +12,10 @@ echo "node: $HOSTNAME"
 echo "jobid: $SLURM_JOB_ID"
 
 # set slurm module
-module load CUDA/11.2.2
+module add CUDA/11.2.2
 module add python/3.11.2
 
 # set envrionment
-python3 -m venv venv
 source venv/bin/activate
 
 # install dependency
@@ -27,4 +26,4 @@ pip install --upgrade pip setuptools
 pip3 install transformers
 pip3 install numpy
 
-python3 train.py
+python3 train_BERT.py
