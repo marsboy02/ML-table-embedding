@@ -16,7 +16,7 @@ from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler()
 
 # 디렉토리및 csv 파일명 확인
-df = pd.read_csv('./final_df.csv')
+df = pd.read_csv('./balanced_final_df.csv')
 df = df.dropna()
 
 # ==================================== <Model Training> ====================================

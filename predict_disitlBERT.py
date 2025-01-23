@@ -25,8 +25,8 @@ def predict(table1, table2, real_cols1, real_cols2, real_rows1, real_rows2):
 
 # 비교할 테이블 쌍 호출
 
-table1 = np.load('./input_table/Netflix_movies_and_tv_shows_clustering.npy')
-table2 = np.load('./input_table/netflix_titles.npy')
+table1 = np.load('./input_table/economics_and_education_dataset_CSV.npy')
+table2 = np.load('./input_table/World_Important_Dates.npy')
 
 # GPU/CPU 설정
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,7 +47,7 @@ cross_encoder = TableCrossEncoder(expansion_factor=4, n_layer=6, n_head=8)
 # 저장된 가중치 로드
 
 # =========== pt 파일명 지정 ===========
-pt_file = ''
+pt_file = 'disbert_lr1e-03_bs32_div7.pt'
 
 checkpoint = torch.load(pt_file, map_location=device, weights_only=True)
 vertical_attn.load_state_dict(checkpoint['vertical_attn'])

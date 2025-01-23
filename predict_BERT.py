@@ -37,7 +37,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 #                               [CLS] vs Mean-Pooling
 #                               [CLS] vs Mean-Pooling
 
-vertical_attn = VerticalSelfAttention(embed_dim=256, expansion_factor=1, num_heads=4, rep_mode="cls")
+vertical_attn = VerticalSelfAttention(embed_dim=256, expansion_factor=4, num_heads=4, rep_mode="cls")
 cross_encoder = TableCrossEncoder(expansion_factor=4, n_layer=6, n_head=8)
 
 #                           =============================
@@ -47,7 +47,7 @@ cross_encoder = TableCrossEncoder(expansion_factor=4, n_layer=6, n_head=8)
 # 저장된 가중치 로드
 
 # =========== pt 파일명 지정 ===========
-pt_file = ''
+pt_file = 'bert_lr1e-03_bs64_div7.pt'
 
 checkpoint = torch.load(pt_file, map_location=device, weights_only=True)
 vertical_attn.load_state_dict(checkpoint['vertical_attn'])
