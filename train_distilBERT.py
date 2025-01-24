@@ -19,6 +19,14 @@ scaler = MinMaxScaler()
 df = pd.read_csv('./balanced_final_df.csv')
 df = df.dropna()
 
+# hyperparamter setting
+
+epochs = [50]
+batchs = [16, 32]
+lrs = [1e-3]
+alphas = [0.1, 0.3, 0.5, 0.7, 0.9]
+
+
 # ==================================== <Model Training> ====================================
 def train_model(num_epochs, batch_size, lr, alpha):
     # GPU
@@ -141,13 +149,6 @@ def train_model(num_epochs, batch_size, lr, alpha):
             break
 
     print("Training finished (or stopped early).")
-
-# hyperparamter setting
-
-epochs = [50]
-batchs = [16, 32]
-lrs = [1e-3]
-alphas = [0.1, 0.3, 0.5, 0.7, 0.9]
 
 # model training start
 

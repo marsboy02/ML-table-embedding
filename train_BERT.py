@@ -15,8 +15,16 @@ from sklearn.preprocessing import MinMaxScaler
 
 scaler = MinMaxScaler()
 
+# hyperparamter setting
+
+epochs = [50]
+batchs = [16, 32]
+lrs = [1e-3]
+alphas = [0.1, 0.3, 0.5, 0.7, 0.9]
+
+
 # 디렉토리및 csv 파일명 확인
-df = pd.read_csv('./final_df.csv')
+df = pd.read_csv('./balanced_final_df.csv')
 df = df.dropna()
 
 # ==================================== <Model Training> ====================================
@@ -36,12 +44,26 @@ def train_model(num_epochs, batch_size, lr, alpha):
 #                    ================================================
 
     print(f'총 학습 데이터 개수 : {tabledata.shape[0]}')
-
-    train_df, val_df = train_test_split(tabledata, test_size=0.2, random_state=42)
-
-    print('학습 Dataframe 구축 완료')
-    print(f'train dataset : {train_df.shape[0]}')
-    print(f'validation dataset : {val_df.shape[0]}')
+    
+    train_df = pd.DataFrame()
+    val_df = pd.DataFrame()
+    
+    for query, group in tabledata.groupby('Query'):
+        if len(group) == 1:
+            # 데이터가 1개라면, 무조건 train_df에 추가
+            train_df = pd.concat([train_df, group], axis=0)
+        else:
+            # 데이터가 2개 이상인 경우만 train_test_split 수행
+            train, val = train_test_split(group, test_size=0.3, random_state=42)
+            train_df = pd.concat([train_df, train], axis=0)
+            val_df = pd.concat([val_df, val], axis=0)
+    
+    # 인덱스 재설정
+    train_df = train_df.reset_index(drop=True)
+    val_df = val_df.reset_index(drop=True)
+    
+    print(f"Train DataFrame 크기: {train_df.shape}")
+    print(f"Validation DataFrame 크기: {val_df.shape}")
 
     # 하이퍼파라미터
     num_epochs = num_epochs
@@ -141,13 +163,6 @@ def train_model(num_epochs, batch_size, lr, alpha):
             break
 
     print("Training finished (or stopped early).")
-
-# hyperparamter setting
-
-epochs = [50]
-batchs = [16, 32]
-lrs = [1e-3]
-alphas = [0.1, 0.3, 0.5, 0.7, 0.9]
 
 # model training start
 
