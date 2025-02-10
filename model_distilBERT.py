@@ -180,7 +180,7 @@ class VerticalSelfAttention(nn.Module):
 
         self.mha = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, batch_first=True)
 
-        self.cls_token = torch.zeros(1, 1, embed_dim)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.layernorm = nn.LayerNorm(embed_dim)
         self.ffn = nn.Sequential(
@@ -211,9 +211,8 @@ class VerticalSelfAttention(nn.Module):
                 col_tensor = table_b[col_idx]  # (R, E)
 
                 # [CLS] + col_tensor
-                cls_token_for_col = self.cls_token.to(device)  # (1,1,E)
                 col_tensor = col_tensor.unsqueeze(0)  # (1,R,E)
-                col_with_cls = torch.cat([cls_token_for_col, col_tensor], dim=1)  # (1, R+1, E)
+                col_with_cls = torch.cat([self.cls_token, col_tensor], dim=1)  # (1, R+1, E)
 
                 row_mask = torch.zeros(1+R, dtype=torch.bool, device=device)
 
@@ -262,7 +261,9 @@ class TableCrossEncoder(nn.Module):
                  expansion_factor=4,
                  n_layer=6,
                  n_head=8,
-                 dropout=0.1):
+                 dropout=0.1,
+                 max_position_embedding=512,
+                 hidden_size=256):
         super().__init__()
         
         config = DistilBertConfig(
@@ -275,7 +276,13 @@ class TableCrossEncoder(nn.Module):
         )
         self.bert = DistilBertModel(config=config)
 
-        # self.projection = nn.Linear(256, 768)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, self.bert.config.dim))
+        self.sep_token = nn.Parameter(torch.zeros(1, 1, self.bert.config.dim))
+
+        self.max_position_embeddings = max_position_embedding
+        self.hidden_size = hidden_size
+        self.pos_embeddings = nn.Embedding(max_position_embedding, hidden_size)
+        self.segment_embeddings = nn.Embedding(2, hidden_size)
 
         self.regressor = nn.Sequential(
             nn.Linear(self.bert.config.hidden_size, 1)
@@ -294,19 +301,16 @@ class TableCrossEncoder(nn.Module):
         B, maxC1, _ = table1_colreps.shape
         maxC2 = table2_colreps.shape[1]
 
-        # ----- [1] 256 -> 768 변환 -----
-        # table1_colreps_768 = self.projection(table1_colreps)  # (B, maxC1, 768)
-        # table2_colreps_768 = self.projection(table2_colreps)  # (B, maxC2, 768)
-
-
-        # ----- [2] [CLS], [SEP] 임베딩 (768차원) -----
+        # ----- [1] [CLS], [SEP] 임베딩 (256차원) -----
         device = table1_colreps.device
-        cls_token = torch.zeros(B, 1, 256).to(device)
-        sep_token = torch.zeros(B, 1, 256).to(device)
+        cls_token_batch = self.cls_token.expand(B, -1, -1).to(device)
+        sep_token_batch = self.sep_token.expand(B, -1, -1).to(device)
 
+        # ----- [2] sequence 구성 (256차원) -----
         # sequence: (B, 1 + maxC1 + 1 + maxC2, E)
-        sequence = torch.cat([cls_token, table1_colreps, sep_token, table2_colreps], dim=1)
+        sequence = torch.cat([cls_token_batch, table1_colreps, sep_token_batch, table2_colreps], dim=1)
 
+        # ----- [3] Attention Mask 생성 (256차원) -----
         # attention_mask: same shape (B, seq_len)
         seq_len = sequence.size(1)
         attention_mask = torch.zeros(B, seq_len, dtype=torch.long).to(device)
@@ -332,14 +336,25 @@ class TableCrossEncoder(nn.Module):
             if r2 > 0:
                 attention_mask[b_idx, sep_pos+1 : sep_pos+1 + int(r2)] = 1
 
-        # ----- [3] BERT forward -----
+        # ----- [4] Positional Embedding 생성 (256차원) -----
+        pos_ids = torch.arange(seq_len, device=device).unsqueeze(0).expand(B, -1) # (B, seq_len)
+        pos_emb = self.pos_embeddings(pos_ids)
+        
+        # ----- [5] Segment Embedding 생성 (256차원) -----
+        seg_ids = torch.zeros(B, seq_len, dtype=torch.long, device=device)
+        seg_ids[:, (1+maxC1+1):] = 1
+        seg_emb = self.segment_embeddings(seg_ids)
+        
+        sequence_with_embedding = sequence + pos_emb + seg_emb
+        
+        # ----- [6] BERT forward -----
         outputs = self.bert(
-            inputs_embeds=sequence,
+            inputs_embeds=sequence_with_embedding,
             attention_mask=attention_mask
         )
-        # cls_rep = outputs.last_hidden_state[:, 0, :]  # (B, 256)
-
-        hidden_states = outputs[0]                      # (B, seq_len, 256)
+        
+        # ----- [7] hiddent state [CLS] 출력 (256차원) -----
+        hidden_states = outputs.last_hidden_state                      # (B, seq_len, 256)
         cls_rep = hidden_states[:, 0, :]                # (B, 256)
 
         # ----- [4] Regression -----

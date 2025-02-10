@@ -4,8 +4,8 @@ import torch
 from queue import PriorityQueue
 import pandas as pd
 import argparse
-from model_BERT import VerticalSelfAttention, TableCrossEncoder
-# from model_distilBERT import VerticalSelfAttention, TableCrossEncoder
+# from model_BERT import VerticalSelfAttention, TableCrossEncoder
+from model_distilBERT import VerticalSelfAttention, TableCrossEncoder
 
 # ===============================================================
 # 1) 조인 가능 컬럼 탐지 함수
@@ -30,10 +30,10 @@ def detect_joinable_columns(df1, df2):
 
 # ===============================================================
 # 2) 저장된 가중치 로드
-pt_file = 'models/bert_mean_base_lr1e-03_bs32_div3.pt'
+pt_file = 'models/disbert_mean_base_lr1e-03_bs32_div1.pt'
 
 # Query 테이블 설정 (.npy 파일)
-query_table_path = './input_table/Top 2000 Companies Financial Data 2024.npy'
+query_table_path = './input_table/economics_and_education_dataset_CSV.npy'
 query_table = np.load(query_table_path)
 
 # Target 테이블 리스트 생성
