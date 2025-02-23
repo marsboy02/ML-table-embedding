@@ -2,6 +2,8 @@
 
 table embedding and machine Learning process for HPC cluster
 
-## License
+## command
 
-All rights reserved by [**Sihyeong**](https://github.com/Godsihyeong).
+```bash
+$ python3 find.py --k 15
+```
