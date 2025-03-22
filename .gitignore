@@ -1,13 +1,4 @@
-# env
-venv
-.DS_Store
-
-# dataset
+# data
+dataset/
 input_table/
-
-# model
-*.pt
-
-# cache
-__pycache__
-
+models/
